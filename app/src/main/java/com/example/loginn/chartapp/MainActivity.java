@@ -2,6 +2,7 @@ package com.example.loginn.chartapp;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.YAxis;
@@ -28,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<IBarDataSet> pressureChartData = new ArrayList<>();
     ArrayList<IBarDataSet> tempChartData = new ArrayList<>();
 
+    TextView outcome;
+
     int i = 0;
 
     @Override
@@ -38,131 +41,95 @@ public class MainActivity extends AppCompatActivity {
         pressureChart = (BarChart) findViewById(R.id.pressureChart);
         tempChart = (BarChart) findViewById(R.id.tempChart);
 
+        outcome = (TextView) findViewById(R.id.outcome);
+
         this.run();
     }
 
     protected void run() {
 
-
-        BarEntry ep = new BarEntry(0, 1000);
-        BarEntry et = new BarEntry(0, 10);
-
-        pressureData.add(ep);
-        tempData.add(et);
-
-        ep = new BarEntry(1, 1100);
-        et = new BarEntry(1, 12);
-
-        pressureData.add(ep);
-        tempData.add(et);
-
-        ep = new BarEntry(2, 1050);
-        et = new BarEntry(2, 25);
-
-        pressureData.add(ep);
-        tempData.add(et);
-        ep = new BarEntry(3, 1100);
-        et = new BarEntry(3, 30);
-
-        pressureData.add(ep);
-        tempData.add(et);
-
-        pressureSet = new BarDataSet(pressureData, "Pressure");
-        pressureSet.setAxisDependency(YAxis.AxisDependency.LEFT);
-        tempSet = new BarDataSet(tempData, "Temperature");
-        tempSet.setAxisDependency(YAxis.AxisDependency.LEFT);
-
-        pressureChartData.add(pressureSet);
-        tempChartData.add(tempSet);
-
-        BarData pressureData = new BarData(pressureChartData);
-        BarData tempData = new BarData(tempChartData);
-
-        pressureChart.setData(pressureData);
-        pressureChart.invalidate();
-        tempChart.setData(tempData);
-        tempChart.invalidate();
-
-/*
-        AsyncHttpClient client = new AsyncHttpClient();
-
-        client.get("https://api.thingspeak.com/channels/270077/feeds.json", new AsyncHttpResponseHandler() {
+        new Thread(new Runnable() {
             @Override
-            public void onStart() {
-                // called before request is started
-            }
+            public void run() {
+                AsyncHttpClient client = new AsyncHttpClient();
+                while (true) {
+                    client.get("https://api.thingspeak.com/channels/270077/feeds.json", new AsyncHttpResponseHandler() {
+                        @Override
+                        public void onStart() {
+                            // called before request is started
+                        }
 
-            @Override
-            public void onSuccess(int statusCode, Header[] headers, byte[] response) {
-                try {
-                    JSONObject object = new JSONObject(new String(response));
-                    JSONArray feeds = object.getJSONArray("feeds");
+                        @Override
+                        public void onSuccess(int statusCode, Header[] headers, byte[] response) {
+                            int lastPressure = 0;
+                            int lastTemp = 0;
 
-                    for (; i < feeds.length() ; i++) {
-                        JSONObject j = feeds.getJSONObject(i);
+                            try {
+                                JSONObject object = new JSONObject(new String(response));
+                                JSONArray feeds = object.getJSONArray("feeds");
 
-                        BarEntry ep = new BarEntry(i, Integer.parseInt(j.getString("field1")));
-                        BarEntry et = new BarEntry(i, Integer.parseInt(j.getString("field2")));
+                                for (; i < feeds.length(); i++) {
+                                    JSONObject j = feeds.getJSONObject(i);
 
-                        pressureData.add(ep);
-                        tempData.add(et);
-                    }
+                                    BarEntry ep = new BarEntry(i, Integer.parseInt(j.getString("field1")));
+                                    BarEntry et = new BarEntry(i, Integer.parseInt(j.getString("field2")));
 
-                    BarEntry ep = new BarEntry(i, 1000);
-                    BarEntry et = new BarEntry(i, 10);
+                                    lastPressure = Integer.parseInt(j.getString("field1"));
+                                    lastTemp = Integer.parseInt(j.getString("field2"));
 
-                    pressureData.add(ep);
-                    tempData.add(et);
+                                    pressureData.add(ep);
+                                    tempData.add(et);
+                                }
 
-                    ep = new BarEntry(i, 1100);
-                    et = new BarEntry(i, 12);
+                                if (lastPressure < 995 && lastTemp < 10) {
+                                    outcome.setText("Rain is likely");
+                                } else if (lastPressure < 995 && lastTemp < 0) {
+                                    outcome.setText("Snow is likely");
+                                } else {
+                                    outcome.setText("Probably no rain");
+                                }
 
-                    pressureData.add(ep);
-                    tempData.add(et);
 
-                    ep = new BarEntry(i, 1050);
-                    et = new BarEntry(i, 25);
+                                pressureSet = new BarDataSet(pressureData, "Pressure");
+                                pressureSet.setAxisDependency(YAxis.AxisDependency.LEFT);
+                                tempSet = new BarDataSet(tempData, "Temperature");
+                                tempSet.setAxisDependency(YAxis.AxisDependency.LEFT);
 
-                    pressureData.add(ep);
-                    tempData.add(et);
-                    ep = new BarEntry(i, 1100);
-                    et = new BarEntry(i, 30);
+                                pressureChartData.add(pressureSet);
+                                tempChartData.add(tempSet);
 
-                    pressureData.add(ep);
-                    tempData.add(et);
+                                BarData pressureData = new BarData(pressureChartData);
+                                BarData tempData = new BarData(tempChartData);
 
-                    pressureSet = new BarDataSet(pressureData, "Pressure");
-                    pressureSet.setAxisDependency(YAxis.AxisDependency.LEFT);
-                    tempSet = new BarDataSet(tempData, "Temperature");
-                    tempSet.setAxisDependency(YAxis.AxisDependency.LEFT);
+                                pressureChart.setData(pressureData);
+                                pressureChart.invalidate();
+                                tempChart.setData(tempData);
+                                tempChart.invalidate();
 
-                    pressureChartData.add(pressureSet);
-                    tempChartData.add(tempSet);
+                                try {
+                                    Thread.sleep(30000);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
 
-                    BarData pressureData = new BarData(pressureChartData);
-                    BarData tempData = new BarData(tempChartData);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
 
-                    pressureChart.setData(pressureData);
-                    pressureChart.invalidate();
-                    tempChart.setData(tempData);
-                    tempChart.invalidate();
+                        @Override
+                        public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
+                            // called when response HTTP status is "4XX" (eg. 401, 403, 404)
+                            System.out.println("Could not get the data");
+                        }
 
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                        @Override
+                        public void onRetry(int retryNo) {
+                            // called when request is retried
+                        }
+                    });
                 }
             }
-
-            @Override
-            public void onFailure(int statusCode, Header[] headers, byte[] errorResponse, Throwable e) {
-                // called when response HTTP status is "4XX" (eg. 401, 403, 404)
-                System.out.println("Could not get the data");
-            }
-
-            @Override
-            public void onRetry(int retryNo) {
-                // called when request is retried
-            }
         });
-        */
     }
 }
